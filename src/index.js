@@ -4,6 +4,10 @@ const dotenv = require('dotenv');
 const { PrismaClient } = require('@prisma/client');
 const path = require('path');
 
+// --- 1. เพิ่ม Import สำหรับ Swagger ---
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsDoc = require('swagger-jsdoc');
+
 dotenv.config();
 
 const app = express();
@@ -17,6 +21,42 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// --- 2. ตั้งค่า Swagger Options ---
+const swaggerOptions = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'Personnel Evaluation API',
+            version: '1.0.0',
+            description: 'API Documentation สำหรับระบบประเมินผลบุคลากร',
+        },
+        servers: [
+            {
+                url: `http://localhost:${PORT}`,
+                description: 'Local Development Server'
+            }
+        ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                }
+            }
+        },
+        // บังคับให้แสดงรูปแม่กุญแจ (Lock icon) เพื่อให้ใส่ Token ในการเทส
+        security: [{ bearerAuth: [] }],
+    },
+    // ชี้ไปที่โฟลเดอร์ routes เพื่อให้ Swagger ไปอ่านคอมเมนต์
+    apis: ['./src/routes/*.js', './routes/*.js'], 
+};
+
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+
+// --- 3. สร้าง Endpoint สำหรับหน้า UI ของ Swagger ---
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -37,6 +77,7 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    console.log(`📄 Swagger UI is available at http://localhost:${PORT}/api-docs`); // แจ้ง URL ให้กดง่ายๆ
 });
 
 module.exports = app;
