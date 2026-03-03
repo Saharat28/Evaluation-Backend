@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  name             String
+  email            String         @unique
+  passwordHash     String
+  role             Role           @default(EVALUATEE)
+  departmentId     Int?
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  assignmentsAsEvaluator Assignment[] @relation("Evaluator")
+  assignmentsAsEvaluatee Assignment[] @relation("Evaluatee")
+  evidence         Evidence[]
+  createdAt        DateTime       @default(now())
+}
+
+model Department {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  users User[]
+}
+
+model Evaluation {
+  id          Int              @id @default(autoincrement())
+  name        String
+  startAt     DateTime
+  endAt       DateTime
+  status      EvaluationStatus @default(DRAFT)
+  topics      Topic[]
+  assignments Assignment[]
+}
+
+model Topic {
+  id           Int         @id @default(autoincrement())
+  evaluationId Int
+  name         String
+  evaluation   Evaluation  @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  indicators   Indicator[]
+}
+
+model Indicator {
+  id               Int                @id @default(autoincrement())
+  topicId          Int
+  name             String
+  type             IndicatorType
+  weight           Float
+  requireEvidence  Boolean            @default(false)
+  topic            Topic              @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  evidence         Evidence[]
+  results          EvaluationResult[]
+}
+
+model Assignment {
+  id           Int                @id @default(autoincrement())
+  evaluationId Int
+  evaluatorId  Int
+  evaluateeId  Int
+  evaluation   Evaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  evaluator    User               @relation("Evaluator", fields: [evaluatorId], references: [id])
+  evaluatee    User               @relation("Evaluatee", fields: [evaluateeId], references: [id])
+  results      EvaluationResult[]
+
+  @@unique([evaluationId, evaluatorId, evaluateeId])
+}
+
+model Evidence {
+  id          Int       @id @default(autoincrement())
+  indicatorId Int
+  evaluateeId Int
+  filePath    String
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime  @default(now())
+  indicator   Indicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  evaluatee   User      @relation(fields: [evaluateeId], references: [id])
+
+  @@unique([indicatorId, evaluateeId])
+}
+
+model EvaluationResult {
+  id           Int        @id @default(autoincrement())
+  assignmentId Int
+  indicatorId  Int
+  score        Int? // 1-4 or 0/1
+  createdAt    DateTime   @default(now())
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  indicator    Indicator  @relation(fields: [indicatorId], references: [id])
+
+  @@unique([assignmentId, indicatorId])
+}
+
+enum Role {
+  ADMIN
+  EVALUATOR
+  EVALUATEE
+}
+
+enum IndicatorType {
+  SCALE_1_4
+  YES_NO
+}
+
+enum EvaluationStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
