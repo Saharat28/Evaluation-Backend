@@ -8,11 +8,33 @@ const prisma = new PrismaClient();
 router.post('/register', async (req, res) => {
     try {
         const { name, email, password, role, departmentId } = req.body;
+
+        // Security check: Prevent public registration of ADMINs
+        let finalRole = role;
+        const userCount = await prisma.user.count();
+
+        if (finalRole === 'ADMIN' && userCount > 0) {
+            return res.status(403).json({ message: 'Cannot register as ADMIN directly' });
+        }
+
+        // If it's the first user and no role provided, default to ADMIN, otherwise EVALUATEE
+        if (userCount === 0) {
+            finalRole = 'ADMIN';
+        } else if (!finalRole || finalRole === 'ADMIN') {
+            finalRole = 'EVALUATEE';
+        }
+
         const passwordHash = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
-            data: { name, email, passwordHash, role, departmentId: departmentId ? parseInt(departmentId) : null }
+            data: {
+                name,
+                email,
+                passwordHash,
+                role: finalRole,
+                departmentId: departmentId ? parseInt(departmentId) : null
+            }
         });
-        res.status(201).json({ message: 'User registered', userId: user.id });
+        res.status(201).json({ message: `User registered as ${finalRole}`, userId: user.id });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

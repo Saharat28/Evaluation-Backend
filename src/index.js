@@ -10,7 +10,11 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -35,4 +39,5 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-module.exports = { prisma };
+module.exports = app;
+module.exports.prisma = prisma;
